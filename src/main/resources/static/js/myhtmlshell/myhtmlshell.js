@@ -1,61 +1,17 @@
-function onopen(term, socket) {
-  term.attach(socket);
-  term._initialized = true;
-}
-
-function runFakeTerminal(term) {
-  if (term._initialized) {
-    return;
-  }
-
-  term._initialized = true;
-
-  var shellprompt = '$ ';
-
-  term.prompt = function () {
-    term.write('\r\n' + shellprompt);
-  };
-
-  term.writeln('Welcome to MyHtmlShell');
-  term.writeln('');
-  term.prompt();
-
-  term.on('key', function (key, ev) {
-    var printable = (
-      !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
-    );
-
-    if (ev.keyCode == 13) {
-      term.prompt();
-    } else if (ev.keyCode == 8) {
-     // Do not delete the prompt
-      if (term.x > 2) {
-        term.write('\b \b');
-      }
-    } else if (printable) {
-      term.write(key);
-    }
-  });
-
-  term.on('paste', function (data, ev) {
-    term.write(data);
-  });
-}
-
 var socket = null;
 
-(function () {
+(function() {
 
     var protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
-    var socketURL = protocol + location.hostname + ((location.port) ? (':' + location.port) : '') + '/ws-myhtmlshell';
-
+    var socketURL = protocol + location.hostname
+            + ((location.port) ? (':' + location.port) : '')
+            + '/ws-myhtmlshell';
 
     socket = new WebSocket(socketURL);
     socket.onmessage = function(data){
-        // data.data
-
+        term.write(data.data);
+        term.prompt();
     };
-
 
     var terminalContainer = document.getElementById('terminal-container');
 
@@ -64,20 +20,51 @@ var socket = null;
     }
     var term = new Terminal({
         cursorBlink : true,
-        scrollback : 10,
-        tabStopWidth : 10
+    // scrollback : 10,
+    // tabStopWidth : 10
     });
     term.open(terminalContainer);
     term.fit();
 
     var initialGeometry = term.proposeGeometry();
+    term.resize(document.body.clientWidth, document.body.clientHeight);
+    socket.onopen = function() {
+        term.writeln("MyHtmlShell\r\n");
+        term.prompt();
+    };
+    socket.onclose = function() {
+        socket.close();
+    };
+    socket.onerror = function() {
+        
+    };
 
-    socket.onopen = onopen(term, socket);
-    socket.onclose = runFakeTerminal(term);
-    socket.onerror = runFakeTerminal(term);
+    var keys = "";
+    term
+            .on('key',
+                    function(key, ev) {
+                        //alert(ev.keyCode);
+                        var printable = (!ev.altKey && !ev.altGraphKey
+                                && !ev.ctrlKey && !ev.metaKey);
+
+                        if (ev.keyCode == 13) {
+                            socket.send(keys);
+                            keys = "";
+                            term.prompt();
+                        } else if (ev.keyCode == 8) {
+                            // Do not delete the prompt
+                            if (keys.length > 0) {
+                                term.write('\b \b');
+                                keys = keys.substring(0, keys.length - 1);
+                            }
+                        } else if (printable) {
+                            term.write(key);
+                            keys += key;
+                        }
+                    });
+
+    term.on('paste', function(data, ev) {
+        term.write(data);
+    });
 
 })();
-
-
-
-
