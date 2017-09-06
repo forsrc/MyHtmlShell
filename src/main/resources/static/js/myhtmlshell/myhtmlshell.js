@@ -44,7 +44,7 @@ var term = null;
         var span = _this.element.querySelector('.terminal-cursor').parentNode.childNodes[0];
         var text = span.innerHTML;
 
-        return text.replace(/(<span class="xterm-wide-char">)|(<\/span>)/g,'');
+        return text.replace(/(<span class="xterm\-(wide|normal)\-char">)|(<\/span>)/g,'');
     }
 
     term
