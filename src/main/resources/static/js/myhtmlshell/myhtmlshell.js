@@ -1,4 +1,5 @@
 var socket = null;
+var term = null;
 
 (function() {
 
@@ -10,7 +11,7 @@ var socket = null;
     socket = new WebSocket(socketURL);
     socket.onmessage = function(data){
         term.write(data.data);
-        term.prompt();
+        //term.prompt();
     };
 
     var terminalContainer = document.getElementById('terminal-container');
@@ -18,19 +19,18 @@ var socket = null;
     while (terminalContainer.children.length) {
         terminalContainer.removeChild(terminalContainer.children[0]);
     }
-    var term = new Terminal({
+    term = new Terminal({
         cursorBlink : true,
-    // scrollback : 10,
-    // tabStopWidth : 10
+        scrollback : 1000,
+        tabStopWidth : 4
     });
     term.open(terminalContainer);
     term.fit();
 
-    var initialGeometry = term.proposeGeometry();
     term.resize(document.body.clientWidth, document.body.clientHeight);
     socket.onopen = function() {
         term.writeln("MyHtmlShell\r\n");
-        term.prompt();
+        //term.prompt();
     };
     socket.onclose = function() {
         socket.close();
@@ -39,27 +39,32 @@ var socket = null;
         
     };
 
-    var keys = "";
+    term.getInput = function () {
+        var _this = term;
+        var span = _this.element.querySelector('.terminal-cursor').parentNode.childNodes[0];
+        var text = span.innerHTML;
+
+        return text.replace(/(<span class="xterm-wide-char">)|(<\/span>)/g,'');
+    }
+
     term
             .on('key',
                     function(key, ev) {
-                        //alert(ev.keyCode);
+                        //alert(key);
                         var printable = (!ev.altKey && !ev.altGraphKey
                                 && !ev.ctrlKey && !ev.metaKey);
+                        var input = term.getInput();
 
                         if (ev.keyCode == 13) {
-                            socket.send(keys);
-                            keys = "";
-                            term.prompt();
+                            socket.send(input);
+                            //term.prompt();
                         } else if (ev.keyCode == 8) {
                             // Do not delete the prompt
-                            if (keys.length > 0) {
+                            if (input.length > 1) {
                                 term.write('\b \b');
-                                keys = keys.substring(0, keys.length - 1);
                             }
                         } else if (printable) {
                             term.write(key);
-                            keys += key;
                         }
                     });
 
