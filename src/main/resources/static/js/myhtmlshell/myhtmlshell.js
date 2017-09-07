@@ -47,26 +47,30 @@ var term = null;
         return text.replace(/(<span class="xterm\-(wide|normal)\-char">)|(<\/span>)/g,'');
     }
 
-    term
-            .on('key',
-                    function(key, ev) {
-                        //alert(key);
-                        var printable = (!ev.altKey && !ev.altGraphKey
-                                && !ev.ctrlKey && !ev.metaKey);
-                        var input = term.getInput();
+    term.on('data', function(data) {
+        term.write(data);
+    });
+            
+    term.on('key',
+            function(key, ev) {
+                //alert(key);
+                console.log(ev);
+                var printable = (!ev.altKey && !ev.altGraphKey
+                        && !ev.ctrlKey && !ev.metaKey);
+                var input = term.getInput();
 
-                        if (ev.keyCode == 13) {
-                            socket.send(input);
-                            //term.prompt();
-                        } else if (ev.keyCode == 8) {
-                            // Do not delete the prompt
-                            if (input.length > 1) {
-                                term.write('\b \b');
-                            }
-                        } else if (printable) {
-                            term.write(key);
-                        }
-                    });
+                if (ev.keyCode == 13) {
+                    socket.send(input);
+                    //term.prompt();
+                } else if (ev.keyCode == 8) {
+                    // Do not delete the prompt
+                    if (input.length > 1) {
+                        term.write('\b \b');
+                    }
+                } else if (printable) {
+                    //term.write(key);
+                }
+            });
 
     term.on('paste', function(data, ev) {
         term.write(data);
