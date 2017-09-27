@@ -30,8 +30,8 @@ import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
-import com.forsrc.websocket.hello.Greeting;
-import com.forsrc.websocket.hello.HelloMessage;
+import com.forsrc.boot.websocket.hello.Greeting;
+import com.forsrc.boot.websocket.hello.HelloMessage;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

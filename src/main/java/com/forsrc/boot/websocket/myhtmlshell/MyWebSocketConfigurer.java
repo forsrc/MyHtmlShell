@@ -1,4 +1,4 @@
-package com.forsrc.websocket.myhtmlshell;
+package com.forsrc.boot.websocket.myhtmlshell;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;

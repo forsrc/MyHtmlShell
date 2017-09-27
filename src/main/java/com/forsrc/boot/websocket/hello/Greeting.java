@@ -1,4 +1,4 @@
-package com.forsrc.websocket.hello;
+package com.forsrc.boot.websocket.hello;
 
 public class Greeting {
 

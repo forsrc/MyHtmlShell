@@ -1,4 +1,4 @@
-package com.forsrc.websocket.hello;
+package com.forsrc.boot.websocket.hello;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;

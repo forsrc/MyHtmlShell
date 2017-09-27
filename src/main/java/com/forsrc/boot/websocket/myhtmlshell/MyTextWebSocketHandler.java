@@ -1,4 +1,4 @@
-package com.forsrc.websocket.myhtmlshell;
+package com.forsrc.boot.websocket.myhtmlshell;
 
 import java.io.IOException;
 import java.util.Iterator;
