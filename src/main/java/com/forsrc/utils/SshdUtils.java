@@ -1,13 +1,20 @@
 package com.forsrc.utils;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.channel.ChannelExec;
+import org.apache.sshd.client.channel.ChannelShell;
+import org.apache.sshd.client.channel.ClientChannel;
 import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.util.GenericUtils;
+import org.apache.sshd.common.util.io.NoCloseOutputStream;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
@@ -21,14 +28,52 @@ public class SshdUtils {
         String password = args[2];
 
         SshdUtils utils = new SshdUtils(hostname, username, password);
+        System.out.println("-----");
         utils.handle(new ClientSessionHandler() {
 
             @Override
             public void handle(ClientSession session) throws IOException {
-                try (ChannelExec exec = session.createExecChannel("whoami")) {
-                    exec.setOut(System.out);
-                    exec.open();
-                    exec.waitFor(Arrays.asList(ClientChannelEvent.CLOSED), 0);
+                ChannelExec exec = session.createExecChannel("whoami");
+                exec.setOut(new NoCloseOutputStream(System.out));
+                exec.open().await();
+                exec.waitFor(Arrays.asList(ClientChannelEvent.CLOSED), 0);
+                exec.close();
+            }
+        });
+        System.out.println("-----");
+        utils.handle(new ClientSessionHandler() {
+
+            @Override
+            public void handle(ClientSession session) throws IOException {
+                ChannelShell channel = session.createShellChannel();
+                channel.setOut(new NoCloseOutputStream(System.out));
+
+                channel.open().await();
+                channel.getInvertedIn().write("whoami¥n".getBytes());
+                channel.getInvertedIn().flush();
+                //channel.waitFor(Arrays.asList(ClientChannelEvent.CLOSED), 0);
+                try {
+                    TimeUnit.SECONDS.sleep(2);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                channel.close();
+            }
+        });
+        System.out.println("-----");
+        utils.handle(new ClientSessionHandler() {
+
+            @Override
+            public void handle(ClientSession session) throws IOException {
+                String response = session.executeRemoteCommand("pwd");
+                String[] lines = GenericUtils.split(response, '\n');
+                for (String l : lines) {
+                    System.out.println(l);
+                }
+                response = session.executeRemoteCommand("whoami");
+                lines = GenericUtils.split(response, '\n');
+                for (String l : lines) {
+                    System.out.println(l);
                 }
             }
         });
@@ -66,10 +111,7 @@ public class SshdUtils {
             handler.handle(session);
         } finally {
             if (session != null && !session.isClosed()) {
-                session.close();
-            }
-            if (client != null && !client.isClosed()) {
-                client.close();
+                session.close(false).await();;
             }
             if (client != null) {
                 client.stop();
