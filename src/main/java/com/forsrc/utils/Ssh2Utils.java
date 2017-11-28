@@ -1,5 +1,10 @@
 package com.forsrc.utils;
 
+import static net.sf.expectit.filter.Filters.removeColors;
+import static net.sf.expectit.filter.Filters.removeNonPrintable;
+import static net.sf.expectit.matcher.Matchers.contains;
+import static net.sf.expectit.matcher.Matchers.regexp;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,6 +22,9 @@ import com.jcraft.jsch.ChannelShell;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+
+import net.sf.expectit.Expect;
+import net.sf.expectit.ExpectBuilder;
 
 public class Ssh2Utils {
 
@@ -76,6 +84,18 @@ public class Ssh2Utils {
                 TimeUnit.SECONDS.sleep(4);
             }
         });
+        System.out.println("--------");
+        ssh.handle(new ExpectHandler() {
+
+            @Override
+            public void handle(Expect expect) throws Exception {
+                expect.sendLine("echo hellowrld");
+                expect.expect(contains("hellowrld"));
+                expect.sendLine();
+                String str = expect.expect(regexp("(.*):(.*)")).group(1);
+                System.out.println("--> user: " + str);
+                expect.expect(regexp("(.*)$"));
+            }});
     }
 
     private String login;
@@ -161,6 +181,29 @@ public class Ssh2Utils {
         }, false);
     }
 
+    public void handle(final ExpectHandler handler) throws Exception {
+        handle("shell", new ChannelHandler() {
+
+            @Override
+            public void handle(Channel channel) throws Exception {
+                Expect expect = new ExpectBuilder()
+                        .withOutput(channel.getOutputStream())
+                        .withInputs(channel.getInputStream(), channel.getExtInputStream())
+                        .withEchoOutput(System.out)
+                        .withEchoInput(System.err)
+                        .withInputFilters(removeColors(), removeNonPrintable())
+                        .withExceptionOnFailure()
+                        .build();
+                try {
+                    handler.handle(expect);
+                } finally {
+                    expect.close();
+                }
+            }
+
+        });
+    }
+
     public Session getSession() throws JSchException {
         JSch ssh = new JSch();
         java.util.Properties config = new java.util.Properties();
@@ -201,5 +244,9 @@ public class Ssh2Utils {
 
     public static interface ChannelExecHandler {
         public void handle(ChannelExec exec) throws Exception;
+    }
+
+    public static interface ExpectHandler {
+        public void handle(Expect expect) throws Exception;
     }
 }
