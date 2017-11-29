@@ -1,9 +1,7 @@
 package com.forsrc.utils;
 
-import static net.sf.expectit.filter.Filters.removeColors;
-import static net.sf.expectit.filter.Filters.removeNonPrintable;
-import static net.sf.expectit.matcher.Matchers.contains;
-import static net.sf.expectit.matcher.Matchers.regexp;
+import static net.sf.expectit.filter.Filters.*;
+import static net.sf.expectit.matcher.Matchers.*;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -13,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Vector;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import com.jcraft.jsch.Channel;
@@ -81,21 +80,64 @@ public class Ssh2Utils {
                 exec.setInputStream(null);
                 exec.setCommand("ls");
                 exec.connect();
-                TimeUnit.SECONDS.sleep(4);
+                TimeUnit.SECONDS.sleep(1);
             }
         });
+        final CompletableFuture<String> future = new CompletableFuture<>();
         System.out.println("--------");
-        ssh.handle(new ExpectHandler() {
+        new Thread() {
+            public void run() {
+                try {
+                    ssh.handle(new ExpectHandler() {
+                        @Override
+                        public void handle(Expect expect) throws Exception {
+                            expect.sendLine("echo hellowrld");
+                            expect.expect(contains("hellowrld"));
+                            expect.sendLine();
+                            String str = expect.expect(regexp("(.*):(.*)")).group(1);
+                            System.err.println("--> user: " + str);
+                            expect.expect(regexp("(.*)$"));
+                            expect.sendLine("exit");
+                            future.complete("exit");
+                            expect.expect(eof());
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+        }.start();
 
-            @Override
-            public void handle(Expect expect) throws Exception {
-                expect.sendLine("echo hellowrld");
-                expect.expect(contains("hellowrld"));
-                expect.sendLine();
-                String str = expect.expect(regexp("(.*):(.*)")).group(1);
-                System.out.println("--> user: " + str);
-                expect.expect(regexp("(.*)$"));
-            }});
+        new Thread() {
+            public void run() {
+                try {
+                    ssh.handle(new ExpectHandler() {
+                        @Override
+                        public void handle(Expect expect) throws Exception {
+                            expect.sendLine("echo hellowrld");
+                            expect.expect(contains("hellowrld"));
+                            String flg = future.get();
+                            if ("exit".equals(flg)) {
+                                expect.sendLine("echo OK");
+                                expect.sendLine("exit");
+                                expect.expect(eof());
+                                expect.close();
+                                return;
+                            }
+                            expect.sendLine();
+                            String str = expect.expect(regexp("(.*):(.*)")).group(1);
+                            System.err.println("--> user: " + str);
+                            expect.expect(regexp("(.*)$"));
+                            expect.sendLine("exit");
+                            expect.expect(eof());
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+        }.start();
+
     }
 
     private String login;
