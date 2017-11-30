@@ -138,6 +138,8 @@ public class Ssh2Utils {
             };
         }.start();
 
+        System.err.println("--> " + future.get());
+
     }
 
     private String login;

@@ -72,11 +72,11 @@
             <artifactId>ganymed-ssh2</artifactId>
             <version>build210-hudson-1</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>org.apache.sshd</groupId>
             <artifactId>sshd-core</artifactId>
             <version>1.6.0</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>net.sf.expectit</groupId>
             <artifactId>expectit-core</artifactId>

@@ -1,10 +1,16 @@
 package com.forsrc.boot.websocket.myhtmlshell;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.io.input.Tailer;
+import org.apache.commons.io.input.TailerListener;
+import org.apache.commons.io.input.TailerListenerAdapter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -15,12 +21,16 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class MyTextWebSocketHandler extends TextWebSocketHandler {
 
     private List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+    private boolean isLogOpen = false;
+
+    private Tailer tailer;
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message)
-            throws InterruptedException, IOException {
+            throws InterruptedException, IOException, ExecutionException {
         System.out.println("--> " + message);
         String msg = message.getPayload();
+        String cmd = message.getPayload().replaceAll("&nbsp;", " ").substring(1);
         msg = String.format("\r\n%s\r\n$", msg);
         Iterator<WebSocketSession> it = sessions.iterator();
         while (it.hasNext()) {
@@ -29,8 +39,37 @@ public class MyTextWebSocketHandler extends TextWebSocketHandler {
                 sessions.remove(webSocketSession);
                 continue;
             }
+            if ("/log start".equals(cmd) && !isLogOpen) {
+                CompletableFuture.runAsync(new Runnable() {
 
-            webSocketSession.sendMessage(new TextMessage(msg));
+                    @Override
+                    public void run() {
+                        TailerListener listener = new TailerListenerAdapter() {
+                            @Override
+                            public void handle(String line) {
+                                super.handle(line);
+                                System.out.println(line);
+                                try {
+                                    String msg = String.format("\r\n%s\r\n$", line);
+                                    webSocketSession.sendMessage(new TextMessage(msg));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        };
+                        tailer = new Tailer(new File("/tmp/test.txt"), listener, 500, true);
+                        tailer.run();
+                        isLogOpen = true;
+
+                    }
+                });
+
+            } else if ("/log stop".equals(cmd) && isLogOpen) {
+                tailer.stop();
+                isLogOpen = false;
+            } else {
+                webSocketSession.sendMessage(new TextMessage(msg));
+            }
         }
     }
 
