@@ -37,9 +37,9 @@ public class Ssh2Utils {
 
             @Override
             public void handle(ChannelSftp sftp) throws Exception {
-                sftp.cd("/db");
+                sftp.cd("./");
                 Vector<ChannelSftp.LsEntry> files = sftp.ls("*");
-                System.out.printf("--> Found %d files in dir %s%n", files.size(), "/db");
+                System.out.printf("--> Found %d files in dir %s%n", files.size(), "./");
 
                 for (ChannelSftp.LsEntry file : files) {
                     if (file.getAttrs().isDir()) {
