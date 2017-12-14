@@ -3,27 +3,42 @@ var term = null;
 
 (function() {
 
+    term = new Terminal({
+        cursorBlink : true,
+        scrollback : 1000,
+        tabStopWidth : 4
+    });
+
     var protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
     var socketURL = protocol + location.hostname
             + ((location.port) ? (':' + location.port) : '')
             + '/ws-myhtmlshell';
 
     socket = new WebSocket(socketURL);
+    socket.onopen = function(evt) {
+        //alert("open");
+        console.log('Connection open ...');
+    };
+    socket.onclose = function(evt) {
+        console.log('Connection closed');
+    };
+    socket.onerror = function(evt) {
+        console.log('onerror');
+    };
     socket.onmessage = function(data){
+        console.log(data.data);
         term.write(data.data);
         //term.prompt();
     };
+
+    //socket.connect();
 
     var terminalContainer = document.getElementById('terminal-container');
 
     while (terminalContainer.children.length) {
         terminalContainer.removeChild(terminalContainer.children[0]);
     }
-    term = new Terminal({
-        cursorBlink : true,
-        scrollback : 1000,
-        tabStopWidth : 4
-    });
+
     term.open(terminalContainer);
     term.fit();
 
@@ -32,12 +47,7 @@ var term = null;
         term.writeln("MyHtmlShell\r\n");
         //term.prompt();
     };
-    socket.onclose = function() {
-        socket.close();
-    };
-    socket.onerror = function() {
-        
-    };
+
 
     term.getInput = function () {
         var _this = term;
