@@ -25,13 +25,47 @@ public class MyTextWebSocketHandler extends TextWebSocketHandler {
 
     private Tailer tailer;
 
+    public MyTextWebSocketHandler() {
+
+    }
+
+    public void tailer() {
+        TailerListener listener = new TailerListenerAdapter() {
+            @Override
+            public void handle(String line) {
+                super.handle(line);
+                System.out.println(line);
+                try {
+                    String msg = String.format("\r\n%s\r\n$", line);
+                    Iterator<WebSocketSession> it = sessions.iterator();
+                    while (it.hasNext()) {
+                        WebSocketSession webSocketSession = it.next();
+                        webSocketSession.sendMessage(new TextMessage(msg));
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        tailer = new Tailer(new File("/tmp/test.txt"), listener, 500, true);
+
+        CompletableFuture.runAsync(new Runnable() {
+
+            @Override
+            public void run() {
+                tailer.run();
+            }
+        });
+
+    }
+
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message)
             throws InterruptedException, IOException, ExecutionException {
         System.out.println("--> " + message);
-        String msg = message.getPayload();
+
         String cmd = message.getPayload().replaceAll("&nbsp;", " ").substring(1);
-        msg = String.format("\r\n%s\r\n$", msg);
+        String msg = String.format("\r\n%s\r\n$", cmd);
         Iterator<WebSocketSession> it = sessions.iterator();
         while (it.hasNext()) {
             WebSocketSession webSocketSession = it.next();
@@ -40,31 +74,11 @@ public class MyTextWebSocketHandler extends TextWebSocketHandler {
                 continue;
             }
             if ("/log start".equals(cmd) && !isLogOpen) {
-                CompletableFuture.runAsync(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        TailerListener listener = new TailerListenerAdapter() {
-                            @Override
-                            public void handle(String line) {
-                                super.handle(line);
-                                System.out.println(line);
-                                try {
-                                    String msg = String.format("\r\n%s\r\n$", line);
-                                    webSocketSession.sendMessage(new TextMessage(msg));
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        };
-                        tailer = new Tailer(new File("/tmp/test.txt"), listener, 500, true);
-                        tailer.run();
-                        isLogOpen = true;
-
-                    }
-                });
-
+                webSocketSession.sendMessage(new TextMessage("\r\nstart log\r\n$"));
+                tailer();
+                isLogOpen = true;
             } else if ("/log stop".equals(cmd) && isLogOpen) {
+                webSocketSession.sendMessage(new TextMessage("\r\nstop log\r\n$"));
                 tailer.stop();
                 isLogOpen = false;
             } else {
