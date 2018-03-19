@@ -15,4 +15,9 @@ public class Greeting {
         return content;
     }
 
+    @Override
+    public String toString() {
+        return String.format("{\"content\":\"%s\"} ", content);
+    }
+
 }
